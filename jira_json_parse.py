@@ -3,9 +3,9 @@ import ijson
 from dateutil.parser import parse
 
 
-FILENAME = 'D:\work\Jira_analyses\json_out_bckp.json'
+FILENAME = 'E:\work\my tasks\Jira_analyses\json_out_bckp.json'
 #OUT_FILENAME = 'D:\work\Jira_analyses\out_csv.csv'
-OUT_FILENAME = 'D:\work\Jira_analyses\out_csv1.csv'
+OUT_FILENAME = 'E:\work\my tasks\Jira_analyses\out_csv1.csv'
 
 
 def get_list_from_file(file):
@@ -23,7 +23,7 @@ def check_empty(in_object):
 
 
 def parse_file_simple(out_filename, list_to_parse):
-    with open(out_filename, 'w') as file:
+    with open(out_filename, 'w', encoding='utf-8') as file:
         file.write('KEY;AUTHOR_NAME;DATE_CREATED;OLD_VALUE;NEW_VALUE;OLD_NUM;NEW_NUM\n')
         for column in list_to_parse:
             for history in column['changelog']['histories']:
@@ -48,8 +48,8 @@ def parse_file_simple(out_filename, list_to_parse):
 
 
 def parse_file_detailed(out_filename, list_to_parse):
-    with open(out_filename, 'w') as file:
-        file.write('KEY;AUTHOR_NAME;AUTHOR_DISPLAY_NAME;ACTIVE;TIME_ZONE;DATE_CREATED;FIELD;OLD_VALUE;NEW_VALUE;'
+    with open(out_filename, 'w', encoding='utf-8') as file:
+        file.write('KEY;ID;AUTHOR_NAME;AUTHOR_DISPLAY_NAME;ACTIVE;TIME_ZONE;DATE_CREATED;FIELD;OLD_VALUE;NEW_VALUE;'
                    'OLD_NUM;NEW_NUM\n')
         for column in list_to_parse:
             for history in column['changelog']['histories']:
@@ -111,5 +111,3 @@ get_list = get_list_from_file(FILENAME)
 #test = None
 #print('1'+check_empty(test)+'2')
 parse_file_detailed(OUT_FILENAME, get_list)
-
-
