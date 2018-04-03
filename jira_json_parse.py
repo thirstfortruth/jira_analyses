@@ -3,9 +3,10 @@ import ijson
 from dateutil.parser import parse
 
 
-FILENAME = 'E:\work\my tasks\Jira_analyses\json_out_bckp.json'
-#OUT_FILENAME = 'D:\work\Jira_analyses\out_csv.csv'
-OUT_FILENAME = 'E:\work\my tasks\Jira_analyses\out_csv1.csv'
+# FILENAME = 'E:\work\my tasks\Jira_analyses\json_out_bckp.json'
+# OUT_FILENAME = 'E:\work\my tasks\Jira_analyses\out_csv1.csv'
+FILENAME = 'D:\work\Jira_analyses\json_out_bckp.json'
+OUT_FILENAME = 'D:\work\Jira_analyses\out_csv.csv'
 
 
 def get_list_from_file(file):
