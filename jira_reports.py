@@ -1,94 +1,72 @@
+import requests
+import json
+import base64
 import pandas as pd
 import ijson
 from datetime import datetime as dt
 from dateutil.parser import parse
 
 
-# FILENAME = 'E:\work\my tasks\Jira_analyses\json_out_bckp.json'
-# OUT_FILENAME = 'E:\work\my tasks\Jira_analyses\out_csv1.csv'
-FILENAME = 'D:\work\Jira_analyses\json_out_bckp.json'
-OUT_FILENAME = 'D:\work\Jira_analyses\out_csv.csv'
-OUT_NEW_FILENAME = 'D:\work\Jira_analyses\out_new_csv.csv'
-OUT_TEAM_FILENAME = 'D:\work\Jira_analyses\out_team_time.csv'
-TEAM = ['ic16', 'ead7', 'uke12358537', 'ead6', 'fc82', 'ib19']
+# JIRA_BASE_URL='https://jira.atlassian.com'
+JIRA_BASE_URL = 'https://jira.global.tesco.org'
+AUTH_STRING = b'USERNAME:PASSWORD'
+ENC_AUTH_STRING = 'Basic ' + base64.encodestring(AUTH_STRING).decode().replace('\n', '')
+HEADER = {"Authorization": ENC_AUTH_STRING,
+          "Content-Type": "application/json", }
+SEARCH_URL = JIRA_BASE_URL+'/rest/api/latest/search'
+ISSUE_URL = JIRA_BASE_URL+'/rest/api/latest/issue/'
+SEARCH_STR = 'project=JRA'
+MAX_RESULTS = 1000 # max issues which could be processed in 1 iteration
+JIRA_OUTPUT_FILE = 'D:/work/Jira_analyses/final_jira_out.json'
+OUT_TEAM_TIME_REPORT = 'D:/work/Jira_analyses/team_time_report.csv'
+TEAM = ['user1', 'user2']
+jira_session = requests.session()
+jira_session.headers = HEADER
+
+
+try:
+    jira_session.post(JIRA_BASE_URL)
+except:
+    print('Unable to connect or authenticate with JIRA server.')
+
+
+def issues_by_jql(jql_string):
+    """
+    :param jql_string: string which represent JQL query used to find required Jira stories
+    :return: extract from Jira of all queried stories in JSON  format
+    """
+    parameters = {'jql': jql_string,
+                  'startAt': 0,
+                  'maxResults': MAX_RESULTS,
+                  # 'fields': 'key,status,assignee,creator,reporter,issuetype,project'}
+                  'fields': '*all',
+                  'expand': 'changelog'}
+    result = jira_session.get(SEARCH_URL, params=parameters).json()
+    total = result['total']
+    if total > MAX_RESULTS:
+        i = 1
+        while MAX_RESULTS * i < total:
+            parameters['startAt'] = MAX_RESULTS*i
+            result['issues'] = result['issues']+jira_session.get(SEARCH_URL, params=parameters).json()['issues']
+            i += 1
+    print('Done extracting data from Jira')
+    return result
+
+
+def save_json_data(output_file, data):
+    with open(output_file, 'w') as outfile:
+        json.dump(data, outfile)
+
 
 def get_list_from_file(file):
+    """
+    :param file: JSON file with data extracted from jira
+    :return: list of JSON items (each item is jira story with full change history)
+    """
     with open(file, 'r') as f:
         objects = ijson.items(f, 'issues.item')
         columns = list(objects)
     return columns
-
-
-def parse_file_simple(out_filename, list_to_parse):
-    with open(out_filename, 'w', encoding='utf-8') as file:
-        file.write('KEY;AUTHOR_NAME;DATE_CREATED;OLD_VALUE;NEW_VALUE;OLD_NUM;NEW_NUM\n')
-        for column in list_to_parse:
-            for history in column['changelog']['histories']:
-                for item in history['items']:
-                    if item['field'] == 'status':
-                        date = parse(history['created'])
-                        date_str = str(date.day) + \
-                                   '.' + str(date.month) + \
-                                   '.' + str(date.year) + \
-                                   ' ' + str(date.hour) + \
-                                   ':' + str(date.minute) + \
-                                   ':' + str(date.second)
-                        file.write(column['key'] +
-                                   ';' + history['author']['name'] +
-                                   ';' + date_str +
-                                   ';' + item['fromString'] +
-                                   ';' + item['toString'] +
-                                   ';' + item['from'] +
-                                   ';' + item['to'] +
-                                   '\n')
-
-
-def list_to_csv(out_filename, list_to_parse):
-    with open(out_filename, 'w', encoding='utf-8') as file:
-        file.write('KEY;ID;AUTHOR_NAME;AUTHOR_DISPLAY_NAME;ACTIVE;TIME_ZONE;DATE_CREATED;FIELD;OLD_VALUE;NEW_VALUE;'
-                   'OLD_NUM;NEW_NUM\n')
-        for column in list_to_parse:
-            for history in column['changelog']['histories']:
-                date = parse(history['created'])
-                date_str = str(date.day) + \
-                           '.' + str(date.month) + \
-                           '.' + str(date.year) + \
-                           ' ' + str(date.hour) + \
-                           ':' + str(date.minute) + \
-                           ':' + str(date.second)
-                for item in history['items']:
-                    try:
-                        if (item['field'] == 'description') or item['field'] == 'Comment':
-                            file.write(column['key'] +
-                                       ';' + history['id'] +
-                                       ';' + history['author']['name'] +
-                                       ';' + history['author']['displayName'] +
-                                       ';' + str(history['author']['active']) +
-                                       ';' + history['author']['timeZone'] +
-                                       ';' + date_str +
-                                       ';' + item['field'] +
-                                       ';' + 'skipped' +
-                                       ';' + 'skipped' +
-                                       ';' + 'skipped' +
-                                       ';' + 'skipped' +
-                                       '\n')
-                        else:
-                            file.write(column['key'] +
-                                       ';' + history['id'] +
-                                       ';' + history['author']['name'] +
-                                       ';' + history['author']['displayName'] +
-                                       ';' + str(history['author']['active']) +
-                                       ';' + history['author']['timeZone'] +
-                                       ';' + date_str +
-                                       ';' + item['field'] +
-                                       ';' + str(item['fromString']) +
-                                       ';' + str(item['toString']) +
-                                       ';' + str(item['from']) +
-                                       ';' + str(item['to']) +
-                                       '\n')
-                    except TypeError:
-                        print(history['id'])
-                        continue
 
 
 def row_list_to_df(list_to_parse):
@@ -171,28 +149,6 @@ def df_transform(src_df):
     return src_df
 
 
-def change_type_sum(in_df, change_field):
-    """
-    :param in_df: input dataframe which need to be processed
-    :param change_field: field by which we need to make calculation
-    :return: resulting DataFrame
-    This function used to summarize time spent on some specific types of changes.
-    For example if type will be "status", function will return for each story sum of time in different status
-    """
-    for index, row in in_df.iterrows():
-        print(index, row)
-    return 0
-
-
-def normalize_group(df_in):
-    """
-    :param df_in: input DataFrame which need to be processed
-    :return: will return resulting DataFrame
-    """
-    inital_raw = df_in.iloc[0]
-    # df_in.loc[df_in['FIELD'] != 'status', 'FIELD'] = 'status'
-    return df_in
-
 def calc_story_teams_time(in_df, in_team):
     """
     :param in_df: input DataFrame which need to be processed
@@ -241,13 +197,16 @@ def get_teams_time(in_df):
     return pd.concat(result_list, ignore_index=True).groupby(['KEY', 'OLD_NUM'])[['DURATION']].sum()
 
 
-source_list = get_list_from_file(FILENAME)
+# get json data by JQL string
+issues = issues_by_jql(SEARCH_STR)
+# save source data to file
+save_json_data(JIRA_OUTPUT_FILE, issues)
+# get list of jira stories from source file
+source_list = get_list_from_file(JIRA_OUTPUT_FILE)
+# transform stories to pandas DataFrame
 df_to_use = df_transform(row_list_to_df(source_list))
+# calculate time spent on stories
 teams_df = get_teams_time(df_to_use)
-teams_df.to_csv(OUT_TEAM_FILENAME, encoding="utf-8-sig", sep=';', mode='a')
-# df_to_use.to_csv(OUT_NEW_FILENAME, index=None, encoding="utf-8-sig", sep=';', mode='a')
+# save report to CSV file
+teams_df.to_csv(OUT_TEAM_TIME_REPORT, encoding="utf-8-sig", sep=';', mode='a')
 
-    # print(new_df.values[i])
-# print(full_dataframe.groupby(['FIELD']))
-
-# list_to_csv(OUT_FILENAME, source_list)
